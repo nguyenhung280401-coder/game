@@ -1,0 +1,1867 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>Game Đào Vàng</title>
+    <style>
+      :root {
+        color-scheme: light;
+        box-sizing: border-box;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      html {
+        scroll-padding-top: env(safe-area-inset-top, 0px);
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        font:
+          14px -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: #fff;
+        color: #000;
+      }
+      img {
+        max-width: 100%;
+      }
+      [hidden]:not([hidden="until-found" i]) {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <title>Game Dào Vàng</title>
+    <meta name="claude:viewport-fit-sides" content="cover" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700;800&family=Rye&display=swap"
+    />
+    <style>
+      /* Layout: one centered column. Title with sound and best score, a four-cell HUD, a row of twelve progress nuggets,
+   the mine canvas, then a drop button. The question is a full-screen overlay so it stays readable at phone width.
+   This game commits to one look (underground, lit by gold), so it has a single theme by design. */
+      :root {
+        color-scheme: dark;
+        --soil-deep: #160e07;
+        --soil: #2b1b0e;
+        --plank: #9a6a35;
+        --plank-dark: #6b4420;
+        --gold: #e9b824;
+        --gold-hi: #fff0a3;
+        --gold-lo: #9a6a0c;
+        --chalk: #fff4d6;
+        --ink: #2a1807;
+        --good: #6dbb5f;
+        --bad: #e0573f;
+        --font-display: "Rye", Georgia, "Times New Roman", serif;
+        --font-body: "Alegreya Sans", "Trebuchet MS", "Segoe UI", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        background:
+          radial-gradient(120% 80% at 50% 0%, #3a2413 0%, var(--soil-deep) 60%)
+            fixed,
+          var(--soil-deep);
+        color: var(--chalk);
+        font-family: var(--font-body);
+        font-size: 18px;
+        line-height: 1.4;
+        padding-block: 20px 32px;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+      }
+      .wrap {
+        max-width: 960px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 8px 20px;
+      }
+      h1 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: clamp(30px, 6vw, 48px);
+        line-height: 1.05;
+        letter-spacing: 0.02em;
+        color: var(--gold);
+        text-shadow:
+          0 2px 0 var(--gold-lo),
+          0 4px 0 rgba(0, 0, 0, 0.45);
+        text-wrap: balance;
+      }
+      .tag {
+        margin: 4px 0 0;
+        color: #d9c5a0;
+        font-size: 17px;
+      }
+      .tools {
+        display: flex;
+        align-items: flex-end;
+        gap: 16px;
+      }
+      .best {
+        text-align: right;
+        font-size: 13px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #cdb88f;
+      }
+      .best b {
+        display: block;
+        font-size: 24px;
+        letter-spacing: 0;
+        color: var(--gold-hi);
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+      }
+      .hud {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .cell {
+        background: linear-gradient(180deg, #4a2f19, #35200f);
+        border: 2px solid var(--gold-lo);
+        border-radius: 8px;
+        padding: 6px 10px 8px;
+        min-width: 0;
+        box-shadow: inset 0 1px 0 rgba(255, 240, 163, 0.25);
+      }
+      .cell span {
+        display: block;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #cdb88f;
+      }
+      .cell b {
+        display: block;
+        font-size: clamp(22px, 5vw, 32px);
+        font-weight: 800;
+        line-height: 1.1;
+        color: var(--gold-hi);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .pips {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        padding: 2px 4px;
+      }
+      .pips .lbl {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #cdb88f;
+        margin-right: 4px;
+      }
+      .pip {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px 7px 4px 7px;
+        border: 2px solid var(--gold-lo);
+        background: rgba(0, 0, 0, 0.25);
+        transition:
+          background 0.2s ease,
+          border-color 0.2s ease;
+      }
+      .pip.right {
+        background: linear-gradient(135deg, var(--gold-hi), var(--gold));
+        border-color: var(--gold-hi);
+      }
+      .pip.wrong {
+        background: #7d2a1c;
+        border-color: var(--bad);
+      }
+
+      .mine-frame {
+        border: 4px solid var(--gold-lo);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow:
+          0 0 0 2px #4a2f19,
+          0 18px 40px rgba(0, 0, 0, 0.55);
+        background: var(--soil-deep);
+      }
+      canvas#mine {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 900 / 620;
+        max-width: 100%;
+        touch-action: manipulation;
+        cursor: pointer;
+      }
+
+      .btn {
+        font-family: var(--font-display);
+        font-size: 20px;
+        letter-spacing: 0.04em;
+        color: var(--ink);
+        cursor: pointer;
+        background: linear-gradient(
+          180deg,
+          var(--gold-hi),
+          var(--gold) 45%,
+          #c4931a
+        );
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 26px;
+        box-shadow:
+          0 4px 0 var(--gold-lo),
+          0 10px 18px rgba(0, 0, 0, 0.45);
+        transition:
+          transform 0.08s ease,
+          box-shadow 0.08s ease;
+      }
+      .btn:hover {
+        filter: brightness(1.06);
+      }
+      .btn:active {
+        transform: translateY(3px);
+        box-shadow:
+          0 1px 0 var(--gold-lo),
+          0 4px 10px rgba(0, 0, 0, 0.45);
+      }
+      .btn:focus-visible,
+      .opt:focus-visible,
+      canvas#mine:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid #fff;
+        outline-offset: 3px;
+      }
+
+      /* ---------- Overlay and wooden board ---------- */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        overflow-y: auto;
+        background: rgba(12, 7, 3, 0.8);
+        padding-block: max(16px, env(safe-area-inset-top, 0px))
+          max(16px, env(safe-area-inset-bottom, 0px));
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+      }
+      .sign {
+        width: 100%;
+        max-width: 660px;
+        padding: 12px;
+        margin: auto;
+        border-radius: 16px;
+        background: linear-gradient(
+          135deg,
+          var(--gold-hi),
+          var(--gold) 28%,
+          var(--gold-lo) 52%,
+          var(--gold) 78%,
+          var(--gold-hi)
+        );
+        box-shadow:
+          0 24px 60px rgba(0, 0, 0, 0.7),
+          inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+        animation: pop 0.28s cubic-bezier(0.2, 1.3, 0.4, 1);
+      }
+      @keyframes pop {
+        from {
+          transform: scale(0.82) rotate(-1.5deg);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sign {
+          animation: none;
+        }
+        .btn,
+        .opt,
+        .pip {
+          transition: none;
+        }
+      }
+      .board {
+        border-radius: 8px;
+        color: var(--chalk);
+        padding: 26px clamp(18px, 4vw, 34px) 28px;
+        text-shadow: 0 2px 0 rgba(40, 20, 5, 0.75);
+        background:
+          radial-gradient(
+              circle,
+              #e8e1d2 0 2.5px,
+              #3a2a1a 3.5px 4.5px,
+              transparent 5px
+            )
+            left 10px top 10px / 12px 12px no-repeat,
+          radial-gradient(
+              circle,
+              #e8e1d2 0 2.5px,
+              #3a2a1a 3.5px 4.5px,
+              transparent 5px
+            )
+            right 10px top 10px / 12px 12px no-repeat,
+          radial-gradient(
+              circle,
+              #e8e1d2 0 2.5px,
+              #3a2a1a 3.5px 4.5px,
+              transparent 5px
+            )
+            left 10px bottom 10px / 12px 12px no-repeat,
+          radial-gradient(
+              circle,
+              #e8e1d2 0 2.5px,
+              #3a2a1a 3.5px 4.5px,
+              transparent 5px
+            )
+            right 10px bottom 10px / 12px 12px no-repeat,
+          linear-gradient(180deg, #b0793b, #8a5a2b 55%, #99682f);
+        box-shadow: inset 0 0 44px rgba(40, 20, 5, 0.6);
+      }
+      .board h2,
+      .board h3 {
+        margin: 0;
+        text-wrap: balance;
+      }
+      .qhead,
+      .intro {
+        display: flex;
+        align-items: center;
+        gap: clamp(12px, 3vw, 22px);
+      }
+      .qtext {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 4px 14px;
+        margin-bottom: 8px;
+        font-family: var(--font-display);
+        font-size: 15px;
+        letter-spacing: 0.06em;
+        color: var(--gold-hi);
+      }
+      #qText {
+        font-size: clamp(21px, 4vw, 29px);
+        font-weight: 800;
+        line-height: 1.2;
+      }
+      .opts {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .opt {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+        font: 700 clamp(18px, 3.4vw, 22px)/1.2 var(--font-body);
+        color: var(--chalk);
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+        background: rgba(34, 18, 6, 0.6);
+        border: 2px solid rgba(255, 224, 130, 0.5);
+        border-radius: 10px;
+        padding: 10px 14px;
+        min-height: 52px;
+        transition:
+          background 0.12s ease,
+          border-color 0.12s ease,
+          transform 0.12s ease;
+      }
+      .opt:hover:not(:disabled) {
+        background: rgba(60, 34, 12, 0.75);
+        border-color: var(--gold-hi);
+        transform: translateX(3px);
+      }
+      .opt:disabled {
+        cursor: default;
+      }
+      .opt .key {
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        font-family: var(--font-display);
+        font-size: 16px;
+        color: var(--ink);
+        text-shadow: none;
+        background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+      }
+      .opt .txt {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .opt.right {
+        background: #2c6a2a;
+        border-color: var(--good);
+      }
+      .opt.wrong {
+        background: #7d2a1c;
+        border-color: var(--bad);
+      }
+      .opt.dim {
+        opacity: 0.55;
+      }
+      .feedback {
+        margin-top: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 16px;
+      }
+      .fb-main {
+        flex: 1 1 240px;
+        min-width: 0;
+      }
+      .fb-main p {
+        margin: 0;
+      }
+      #fbText {
+        font-size: 21px;
+        font-weight: 800;
+      }
+      #fbFact {
+        margin-top: 4px;
+        font-size: 17px;
+        font-weight: 500;
+        color: #f3e3bd;
+      }
+      .feedback.ok #fbText {
+        color: #c9f5bd;
+      }
+      .feedback.no #fbText {
+        color: #ffc9bd;
+      }
+
+      #startPanel h2,
+      #endPanel h2 {
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: clamp(30px, 7vw, 46px);
+        line-height: 1.05;
+        color: var(--gold-hi);
+      }
+      #startPanel .board,
+      #endPanel .board {
+        text-align: center;
+      }
+      .intro {
+        justify-content: center;
+        text-align: left;
+        margin-top: 14px;
+      }
+      .rules {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+        font-size: 18px;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .rules li {
+        padding-left: 24px;
+        position: relative;
+      }
+      .rules li::before {
+        content: "";
+        position: absolute;
+        left: 2px;
+        top: 0.5em;
+        width: 10px;
+        height: 10px;
+        transform: rotate(45deg);
+        background: linear-gradient(135deg, var(--gold-hi), var(--gold-lo));
+      }
+      #startBtn {
+        margin-top: 22px;
+      }
+      .big {
+        margin: 8px 0 0;
+        font-family: var(--font-display);
+        font-size: clamp(44px, 12vw, 72px);
+        line-height: 1;
+        color: var(--gold-hi);
+        font-variant-numeric: tabular-nums;
+      }
+      .rank {
+        margin: 6px 0 0;
+        font-size: 22px;
+        font-weight: 800;
+      }
+      .newbest {
+        margin: 2px 0 0;
+        font-size: 16px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #c9f5bd;
+      }
+      .stats {
+        margin: 18px auto 18px;
+        padding: 0;
+        max-width: 400px;
+        display: grid;
+        gap: 6px;
+        font-size: 19px;
+        text-align: left;
+      }
+      .stats div {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding-bottom: 6px;
+        border-bottom: 1px dashed rgba(255, 240, 163, 0.4);
+      }
+      .stats dt {
+        margin: 0;
+      }
+      .stats dd {
+        margin: 0;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+      details.review {
+        margin: 0 auto 20px;
+        max-width: 520px;
+        text-align: left;
+      }
+      details.review summary {
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 18px;
+        text-align: center;
+        color: var(--gold-hi);
+      }
+      .review ol {
+        list-style: none;
+        margin: 12px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .review li {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        font-size: 16px;
+        line-height: 1.3;
+        background: rgba(34, 18, 6, 0.45);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+      .review .mk {
+        flex: 0 0 auto;
+        width: 22px;
+        height: 22px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        font-weight: 800;
+        font-size: 14px;
+        text-shadow: none;
+        color: var(--ink);
+      }
+      .review .mk.ok {
+        background: var(--good);
+      }
+      .review .mk.no {
+        background: var(--bad);
+      }
+      .review .ans {
+        color: #f3e3bd;
+      }
+    </style>
+
+    <div class="wrap">
+      <header>
+        <div>
+          <h1>Game Dào Vàng</h1>
+          <p class="tag">
+            Thu gom các khối vàng. Hãy trả lời để giữ lấy số vàng đó..
+          </p>
+        </div>
+        <div class="tools">
+          <div class="best">Điểm tối đa<b id="bestScore">0</b></div>
+        </div>
+      </header>
+
+      <div class="hud" aria-label="Game status">
+        <div class="cell"><span>Điểm</span><b id="hudScore">0</b></div>
+        <div class="cell"><span>Còn Lại</span><b id="hudLeft">12</b></div>
+        <div class="cell"><span>Chuỗi</span><b id="hudStreak">0</b></div>
+        <div class="cell"><span>Hụt</span><b id="hudMiss">0</b></div>
+      </div>
+      <div
+        class="pips"
+        id="pips"
+        role="img"
+        aria-label="Progress through the 12 nuggets"
+      ></div>
+
+      <div class="mine-frame">
+        <canvas
+          id="mine"
+          tabindex="0"
+          aria-label="Gold mine with 12 gold nuggets. Click or tap to drop the claw."
+        ></canvas>
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <section
+        class="sign"
+        id="startPanel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="startTitle"
+      >
+        <div class="board">
+          <h2 id="startTitle">Game Dào Vàng</h2>
+          <div class="intro">
+            <ul class="rules">
+              <li>
+                Chiếc mỏ đang chờ được kéo những cục vàng. Hãy kéo nó nào.
+              </li>
+            </ul>
+          </div>
+          <button class="btn" id="startBtn" type="button">CHƠI ĐÊ</button>
+        </div>
+      </section>
+
+      <section
+        class="sign"
+        id="quizPanel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qText"
+        hidden
+      >
+        <div class="board">
+          <div class="qhead">
+            <div class="qtext">
+              <div class="meta">
+                <span id="qMeta">Question 1 of 12</span
+                ><span id="qWorth">Worth 100</span>
+              </div>
+              <h2 id="qText"></h2>
+            </div>
+          </div>
+          <div class="opts" id="opts"></div>
+          <div class="feedback" id="feedback" aria-live="polite" hidden>
+            <div class="fb-main">
+              <p id="fbText"></p>
+              <p id="fbFact"></p>
+            </div>
+            <button class="btn" id="nextBtn" type="button">Keep digging</button>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="sign"
+        id="endPanel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="endTitle"
+        hidden
+      >
+        <div class="board">
+          <h2 id="endTitle">Mine cleared</h2>
+          <p class="big" id="endScore">0</p>
+          <p class="rank" id="endRank"></p>
+          <p class="newbest" id="endNew" hidden>New best score</p>
+          <dl class="stats">
+            <div>
+              <dt>Right answers</dt>
+              <dd id="stCorrect">0 / 12</dd>
+            </div>
+            <div>
+              <dt>Longest streak</dt>
+              <dd id="stStreak">0</dd>
+            </div>
+            <div>
+              <dt>Missed drops</dt>
+              <dd id="stMiss">0</dd>
+            </div>
+            <div>
+              <dt>Perfect bonus</dt>
+              <dd id="stPerfect">0</dd>
+            </div>
+            <div>
+              <dt>Steady claw bonus</dt>
+              <dd id="stSteady">0</dd>
+            </div>
+            <div>
+              <dt>Best score</dt>
+              <dd id="stBest">0</dd>
+            </div>
+          </dl>
+          <details class="review">
+            <summary>Review your answers</summary>
+            <ol id="reviewList"></ol>
+          </details>
+          <button class="btn" id="againBtn" type="button">Dig again</button>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        /* ---------- Content ---------- */
+        var QUESTIONS = [
+          {
+            q: "Trong thời kỳ Đổi mới (1986 đến nay), Lâm Đồng chú trọng phát triển lĩnh vực kinh tế nào?",
+            o: [
+              "Nông nghiệp công nghệ cao và du lịch",
+              "Khai thác dầu khí ngoài khơi",
+              "Công nghiệp đóng tàu biển",
+              "Đánh bắt hải sản xa bờ",
+            ],
+            a: 0,
+            t: 2,
+          },
+          {
+            q: "Lâm Đồng phát huy thế mạnh nào để phát triển kinh tế trong thời kỳ Đổi mới?",
+            o: [
+              "Khai thác dầu khí",
+              "Nông nghiệp, cây công nghiệp và du lịch",
+              "Công nghiệp đóng tàu",
+              "Đánh bắt hải sản xa bờ",
+            ],
+            a: 1,
+            t: 3,
+          },
+          {
+            q: "Những sản phẩm nông nghiệp nổi bật của Lâm Đồng là gì?",
+            o: [
+              "Lúa mì, ô liu",
+              "Muối, thủy sản biển",
+              "Chè, cà phê, rau và hoa",
+              "Bông, lúa mì",
+            ],
+            a: 2,
+            t: 1,
+          },
+          {
+            q: "Đà Lạt có thế mạnh nổi bật nào?",
+            o: [
+              "Khai thác dầu khí",
+              "Đánh bắt hải sản",
+              "Đóng tàu",
+              "Du lịch, sản xuất rau và hoa",
+            ],
+            a: 3,
+            t: 1,
+          },
+          {
+            q: "Một chuyển biến quan trọng của kinh tế Lâm Đồng trong thời kỳ Đổi mới là gì?",
+            o: [
+              "Chỉ phát triển kinh tế nhà nước",
+              "Hạn chế giao thương",
+              "Phát triển kinh tế nhiều thành phần",
+              "Chấm dứt xuất khẩu",
+            ],
+            a: 2,
+            t: 1,
+          },
+          {
+            q: "Phát triển nông sản thế mạnh mang lại lợi ích gì cho Lâm Đồng?",
+            o: [
+              "Không cần trao đổi hàng hóa",
+              "Mở rộng thị trường tiêu thụ, xuất khẩu và tăng thu nhập",
+              "Không còn phụ thuộc vào tự nhiên",
+              "Chuyển toàn bộ lao động sang công nghiệp",
+            ],
+            a: 1,
+            t: 1,
+          },
+          {
+            q: "Nhận định nào đúng về kinh tế Lâm Đồng từ năm 1986 đến nay?",
+            o: [
+              "Kinh tế từng bước phát triển, cơ cấu kinh tế có sự chuyển dịch",
+              "Kinh tế không thay đổi",
+              "Nông nghiệp bị loại bỏ hoàn toàn",
+              "Du lịch không đóng góp vào nền kinh tế",
+            ],
+            a: 0,
+            t: 2,
+          },
+          {
+            q: "Thành tựu nào phản ánh sự cải thiện đời sống nhân dân Lâm Đồng?",
+            o: [
+              "Giáo dục bị thu hẹp",
+              "Chăm sóc sức khỏe giảm sút",
+              "Cơ hội việc làm biến mất",
+              "Điều kiện học tập, chăm sóc sức khỏe và sinh hoạt từng bước được cải thiện",
+            ],
+            a: 3,
+            t: 1,
+          },
+          {
+            q: "Để phát triển bền vững, Lâm Đồng cần chú trọng điều gì?",
+            o: [
+              "Khai thác tài nguyên không giới hạn",
+              "Bảo vệ môi trường và sử dụng hiệu quả tài nguyên",
+              "Thu hẹp mọi hoạt động du lịch",
+              "Ngừng ứng dụng khoa học-kỹ thuật",
+            ],
+            a: 1,
+            t: 3,
+          },
+          {
+            q: "Ý nghĩa chung của những thành tựu Lâm Đồng đạt được trong thời kỳ Đổi mới là gì?",
+            o: [
+              "Chỉ phát triển ngành nông nghiệp",
+              "Không cần giao lưu với địa phương khác",
+              "Thúc đẩy phát triển kinh tế-xã hội và nâng cao đời sống nhân dân",
+              "Xóa bỏ hoàn toàn mọi khó khăn",
+            ],
+            a: 2,
+            t: 2,
+          },
+          {
+            q: "Nhóm sản phẩm nông nghiệp nào sau đây đã vươn lên thành thương hiệu xuất khẩu chủ lực, mang lại giá trị gia tăng cao nhất trên một diện tích đất canh tác tại Lâm Đồng trong những năm gần đây?",
+            o: [
+              "Lúa cao sản và ngô lai.",
+              "Rau quả ôn đới, hoa cắt cành và dược liệu.",
+              "Cây cao su và hồ tiêu.",
+              "Cây điều và sắn nguyên liệu thô.",
+            ],
+            a: 1,
+            t: 2,
+          },
+          {
+            q: " Để phát triển kinh tế bền vững gắn với bảo vệ môi trường Tây Nguyên, tỉnh Lâm Đồng đã duy trì và phấn đấu giữ vững tỷ lệ che phủ rừng toàn tỉnh ở mức ổn định là bao nhiêu trong thời kỳ đổi mới?",
+            o: [
+              "Dưới 20%",
+              "Khoảng 30% - 35%",
+              "Trên 54%",
+              "Đạt mức tuyệt đối 100%",
+            ],
+            a: 2,
+            t: 1,
+          },
+        ];
+        var PTS = { 1: 100, 2: 150, 3: 250 };
+        var SIZES = { 1: [58, 46], 2: [78, 60], 3: [100, 78] };
+        var STREAK_BONUS = 25;
+        var PERFECT_BONUS = 300;
+        var BEST_KEY = "gold-digger-quiz-best";
+
+        /* ---------- Geometry ---------- */
+        var W = 900,
+          H = 620,
+          GROUND = 150;
+        var PIVOT = { x: 450, y: 146 };
+        var LEN0 = 30,
+          MAXA = 1.15,
+          SWING = 1.1,
+          EXTEND = 440;
+
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
+        var canvas = $("mine");
+        var ctx = canvas.getContext("2d");
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        function rng(seed) {
+          return function () {
+            seed |= 0;
+            seed = (seed + 0x6d2b79f5) | 0;
+            var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+        }
+        function rr(c, x, y, w, h, r) {
+          c.beginPath();
+          c.moveTo(x + r, y);
+          c.lineTo(x + w - r, y);
+          c.quadraticCurveTo(x + w, y, x + w, y + r);
+          c.lineTo(x + w, y + h - r);
+          c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+          c.lineTo(x + r, y + h);
+          c.quadraticCurveTo(x, y + h, x, y + h - r);
+          c.lineTo(x, y + r);
+          c.quadraticCurveTo(x, y, x + r, y);
+          c.closePath();
+        }
+        function shuffle(a) {
+          for (var i = a.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var t = a[i];
+            a[i] = a[j];
+            a[j] = t;
+          }
+          return a;
+        }
+
+        /* ---------- Background (drawn once) ---------- */
+        var bg = document.createElement("canvas");
+        bg.width = W * dpr;
+        bg.height = H * dpr;
+        (function drawBackground() {
+          var c = bg.getContext("2d");
+          c.setTransform(dpr, 0, 0, dpr, 0, 0);
+          var r = rng(7),
+            g,
+            i,
+            x,
+            y;
+          g = c.createLinearGradient(0, 0, 0, GROUND);
+          g.addColorStop(0, "#241a3d");
+          g.addColorStop(0.55, "#7a4250");
+          g.addColorStop(1, "#e0914a");
+          c.fillStyle = g;
+          c.fillRect(0, 0, W, GROUND);
+          for (i = 0; i < 60; i++) {
+            c.fillStyle =
+              "rgba(255,240,200," + (0.2 + r() * 0.55).toFixed(2) + ")";
+            c.fillRect(r() * W, r() * 70, 2, 2);
+          }
+          c.fillStyle = "#1d1530";
+          c.beginPath();
+          c.moveTo(0, GROUND);
+          for (x = 0; x <= W; x += 30)
+            c.lineTo(
+              x,
+              GROUND -
+                22 -
+                14 * Math.sin(x * 0.012) -
+                9 * Math.sin(x * 0.043 + 1),
+            );
+          c.lineTo(W, GROUND);
+          c.closePath();
+          c.fill();
+          // small cabin and cactus-free scrub on the horizon
+          c.fillStyle = "#150f26";
+          c.fillRect(120, GROUND - 46, 46, 30);
+          c.beginPath();
+          c.moveTo(114, GROUND - 46);
+          c.lineTo(143, GROUND - 64);
+          c.lineTo(172, GROUND - 46);
+          c.closePath();
+          c.fill();
+          c.fillStyle = "#ffcf6a";
+          c.fillRect(136, GROUND - 38, 9, 9);
+          for (i = 0; i < 5; i++) {
+            c.fillStyle = "#150f26";
+            c.beginPath();
+            c.arc(700 + i * 34, GROUND - 22, 9 + (i % 2) * 4, Math.PI, 0);
+            c.fill();
+          }
+
+          g = c.createLinearGradient(0, GROUND, 0, H);
+          g.addColorStop(0, "#5a3a1f");
+          g.addColorStop(0.5, "#3a2413");
+          g.addColorStop(1, "#1b1109");
+          c.fillStyle = g;
+          c.fillRect(0, GROUND, W, H - GROUND);
+
+          for (i = 0; i < 190; i++) {
+            var px = r() * W,
+              py = GROUND + 14 + r() * (H - GROUND - 14),
+              pr = 2 + r() * 5;
+            c.fillStyle =
+              r() > 0.5 ? "rgba(0,0,0,0.26)" : "rgba(255,220,160,0.09)";
+            c.beginPath();
+            c.ellipse(px, py, pr * 1.3, pr, r() * 3, 0, Math.PI * 2);
+            c.fill();
+          }
+          c.fillStyle = "#7a5530";
+          c.fillRect(0, GROUND, W, 5);
+          c.fillStyle = "rgba(255,230,170,0.25)";
+          c.fillRect(0, GROUND, W, 1.5);
+        })();
+
+        /* ---------- Game state ---------- */
+        var g = {
+          state: "menu",
+          score: 0,
+          streak: 0,
+          bestStreak: 0,
+          correct: 0,
+          resolved: 0,
+          misses: 0,
+          nuggets: [],
+          results: [],
+        };
+        var hook = {
+          mode: "swing",
+          angle: 0,
+          dir: 1,
+          len: LEN0,
+          caught: null,
+          weight: 1,
+          crank: 0,
+        };
+        var parts = [],
+          floats = [];
+        var current = null;
+        var best = 0;
+        try {
+          best = parseInt(localStorage.getItem(BEST_KEY), 10) || 0;
+        } catch (e) {
+          best = 0;
+        }
+        $("bestScore").textContent = best;
+
+        function nuggetShape(w, h) {
+          var n = 11,
+            pts = [],
+            i;
+          for (i = 0; i < n; i++) {
+            var a = (i / n) * Math.PI * 2;
+            var k = 0.78 + Math.random() * 0.22;
+            pts.push([Math.cos(a) * (w / 2) * k, Math.sin(a) * (h / 2) * k]);
+          }
+          return pts;
+        }
+
+        function newNuggets() {
+          var order = QUESTIONS.map(function (_, i) {
+            return i;
+          }).sort(function (a, b) {
+            return QUESTIONS[b].t - QUESTIONS[a].t;
+          });
+          var placed = [];
+          order.forEach(function (qi) {
+            var sz = SIZES[QUESTIONS[qi].t],
+              w = sz[0],
+              h = sz[1],
+              tries = 0,
+              ok = false,
+              x = 0,
+              y = 0;
+            while (!ok && tries < 700) {
+              tries++;
+              x = 70 + Math.random() * (W - 140);
+              y = GROUND + 80 + Math.random() * (H - GROUND - 80 - 50);
+              var pad = tries > 350 ? 4 : 16;
+              ok = placed.every(function (p) {
+                return (
+                  Math.abs(p.x - x) > (p.w + w) / 2 + pad ||
+                  Math.abs(p.y - y) > (p.h + h) / 2 + pad
+                );
+              });
+            }
+            placed.push({
+              qi: qi,
+              x: x,
+              y: y,
+              w: w,
+              h: h,
+              tier: QUESTIONS[qi].t,
+              rot: Math.random() * Math.PI * 2,
+              phase: Math.random() * 6,
+              pts: nuggetShape(w, h),
+              hooked: false,
+            });
+          });
+          return placed;
+        }
+
+        function resetRound() {
+          g.score = 0;
+          g.streak = 0;
+          g.bestStreak = 0;
+          g.correct = 0;
+          g.resolved = 0;
+          g.misses = 0;
+          g.results = [];
+          g.nuggets = newNuggets();
+          hook.mode = "swing";
+          hook.len = LEN0;
+          hook.caught = null;
+          hook.angle = 0;
+          hook.dir = 1;
+          parts.length = 0;
+          floats.length = 0;
+          renderPips();
+        }
+
+        /* ---------- Particles and floating text ---------- */
+        function burst(x, y, n, gold) {
+          for (var i = 0; i < n; i++) {
+            var a = Math.random() * Math.PI * 2,
+              sp = 60 + Math.random() * 190;
+            parts.push({
+              x: x,
+              y: y,
+              vx: Math.cos(a) * sp,
+              vy: Math.sin(a) * sp - 60,
+              life: 0,
+              max: 0.6 + Math.random() * 0.6,
+              size: 2 + Math.random() * 3,
+              color: gold
+                ? Math.random() > 0.5
+                  ? "#fff0a3"
+                  : "#e9b824"
+                : "#8a6a45",
+            });
+          }
+        }
+        function floatText(text, x, y, color) {
+          floats.push({
+            text: text,
+            x: x,
+            y: y,
+            life: 0,
+            max: 1.5,
+            color: color,
+          });
+        }
+
+        /* ---------- Drawing ---------- */
+        function nuggetPath(c, pts) {
+          var n = pts.length,
+            i;
+          c.beginPath();
+          c.moveTo(
+            (pts[n - 1][0] + pts[0][0]) / 2,
+            (pts[n - 1][1] + pts[0][1]) / 2,
+          );
+          for (i = 0; i < n; i++) {
+            var p = pts[i],
+              q = pts[(i + 1) % n];
+            c.quadraticCurveTo(
+              p[0],
+              p[1],
+              (p[0] + q[0]) / 2,
+              (p[1] + q[1]) / 2,
+            );
+          }
+          c.closePath();
+        }
+
+        function drawNugget(c, s, x, y, rot, t) {
+          var w = s.w,
+            h = s.h;
+          c.save();
+          c.translate(x, y);
+          var glow = c.createRadialGradient(0, 0, w * 0.2, 0, 0, w * 0.85);
+          glow.addColorStop(0, "rgba(255,214,90,0.28)");
+          glow.addColorStop(1, "rgba(255,214,90,0)");
+          c.fillStyle = glow;
+          c.beginPath();
+          c.arc(0, 0, w * 0.85, 0, Math.PI * 2);
+          c.fill();
+          c.rotate(rot);
+          c.shadowColor = "rgba(0,0,0,0.5)";
+          c.shadowBlur = 9;
+          c.shadowOffsetY = 4;
+          var fg = c.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
+          fg.addColorStop(0, "#fff0a3");
+          fg.addColorStop(0.3, "#f0c230");
+          fg.addColorStop(0.62, "#b47f10");
+          fg.addColorStop(1, "#e9b824");
+          c.fillStyle = fg;
+          nuggetPath(c, s.pts);
+          c.fill();
+          c.shadowColor = "transparent";
+          c.shadowBlur = 0;
+          c.shadowOffsetY = 0;
+          c.lineWidth = 2;
+          c.strokeStyle = "#7a520a";
+          c.stroke();
+          c.save();
+          nuggetPath(c, s.pts);
+          c.clip();
+          c.fillStyle = "rgba(255,248,200,0.5)";
+          c.beginPath();
+          c.moveTo(-w * 0.38, -h * 0.05);
+          c.lineTo(-w * 0.1, -h * 0.42);
+          c.lineTo(w * 0.12, -h * 0.28);
+          c.lineTo(-w * 0.12, h * 0.02);
+          c.closePath();
+          c.fill();
+          c.fillStyle = "rgba(110,70,5,0.35)";
+          c.beginPath();
+          c.moveTo(w * 0.1, h * 0.46);
+          c.lineTo(w * 0.42, h * 0.05);
+          c.lineTo(w * 0.46, h * 0.5);
+          c.closePath();
+          c.fill();
+          c.strokeStyle = "rgba(120,80,8,0.35)";
+          c.lineWidth = 1.2;
+          c.beginPath();
+          c.moveTo(-w * 0.2, h * 0.3);
+          c.lineTo(w * 0.05, h * 0.05);
+          c.lineTo(w * 0.3, h * 0.12);
+          c.stroke();
+          c.restore();
+          var k = Math.pow(Math.max(0, Math.sin(t * 1.6 + s.phase)), 10);
+          if (k > 0.02) {
+            c.rotate(-rot);
+            var sx = -w * 0.22,
+              sy = -h * 0.22,
+              sr = 9 * k;
+            c.fillStyle = "rgba(255,255,255," + k.toFixed(2) + ")";
+            c.beginPath();
+            c.moveTo(sx, sy - sr);
+            c.lineTo(sx + sr * 0.22, sy - sr * 0.22);
+            c.lineTo(sx + sr, sy);
+            c.lineTo(sx + sr * 0.22, sy + sr * 0.22);
+            c.lineTo(sx, sy + sr);
+            c.lineTo(sx - sr * 0.22, sy + sr * 0.22);
+            c.lineTo(sx - sr, sy);
+            c.lineTo(sx - sr * 0.22, sy - sr * 0.22);
+            c.closePath();
+            c.fill();
+          }
+          c.restore();
+        }
+
+        // Winch at the ground line with an original miner who turns the crank.
+        function drawWinch(t) {
+          var c = ctx,
+            bx = PIVOT.x - 100,
+            bw = 200,
+            baseY = GROUND - 12;
+          var working = hook.mode === "extend" || hook.mode === "retract";
+          var hauling = hook.mode === "retract" && !!hook.caught;
+          c.fillStyle = "#6b4420";
+          c.fillRect(bx, baseY, bw, 14);
+          c.fillStyle = "#9a6a35";
+          c.fillRect(bx, baseY, bw, 4);
+          c.fillStyle = "rgba(0,0,0,0.3)";
+          c.fillRect(bx, GROUND + 2, bw, 3);
+          c.strokeStyle = "#5a3a1f";
+          c.lineWidth = 7;
+          c.lineCap = "round";
+          c.beginPath();
+          c.moveTo(PIVOT.x - 30, baseY);
+          c.lineTo(PIVOT.x, PIVOT.y - 44);
+          c.lineTo(PIVOT.x + 30, baseY);
+          c.stroke();
+
+          // miner
+          var mx = PIVOT.x - 46 + (hauling ? Math.sin(t * 9) * 1.2 : 0);
+          var bob = hauling
+            ? Math.abs(Math.sin(t * 9)) * 2
+            : Math.sin(t * 1.6) * 0.8;
+          var y0 = baseY - bob;
+          c.lineCap = "round";
+          // boots and legs
+          c.fillStyle = "#4a2f19";
+          rr(c, mx - 11, y0 - 7, 11, 7, 3);
+          c.fill();
+          rr(c, mx + 1, y0 - 7, 11, 7, 3);
+          c.fill();
+          c.fillStyle = "#3d5a80";
+          c.fillRect(mx - 9, y0 - 28, 8, 22);
+          c.fillRect(mx + 1, y0 - 28, 8, 22);
+          // shirt and overalls
+          c.fillStyle = "#d9a066";
+          rr(c, mx - 12, y0 - 58, 24, 32, 7);
+          c.fill();
+          c.fillStyle = "#3d5a80";
+          rr(c, mx - 9, y0 - 46, 18, 22, 4);
+          c.fill();
+          c.strokeStyle = "#3d5a80";
+          c.lineWidth = 3;
+          c.beginPath();
+          c.moveTo(mx - 6, y0 - 46);
+          c.lineTo(mx - 6, y0 - 56);
+          c.moveTo(mx + 6, y0 - 46);
+          c.lineTo(mx + 6, y0 - 56);
+          c.stroke();
+          c.fillStyle = "#e8c15a";
+          c.fillRect(mx - 3, y0 - 40, 6, 5);
+          // bandana
+          c.fillStyle = "#c0392b";
+          c.beginPath();
+          c.moveTo(mx - 8, y0 - 60);
+          c.lineTo(mx + 8, y0 - 60);
+          c.lineTo(mx, y0 - 50);
+          c.closePath();
+          c.fill();
+          // head
+          var hy = y0 - 70;
+          c.fillStyle = "#e3b48a";
+          c.beginPath();
+          c.arc(mx, hy, 10, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = "#2a1807";
+          c.beginPath();
+          c.arc(mx + 5, hy - 1, 1.6, 0, Math.PI * 2);
+          c.fill();
+          c.strokeStyle = "#5a3a1f";
+          c.lineWidth = 3;
+          c.beginPath();
+          c.moveTo(mx + 1, hy + 4);
+          c.lineTo(mx + 9, hy + 4);
+          c.stroke();
+          // hard hat and lamp
+          c.fillStyle = "#4f8a5b";
+          c.beginPath();
+          c.arc(mx, hy - 3, 11.5, Math.PI, 0);
+          c.closePath();
+          c.fill();
+          c.fillRect(mx - 13, hy - 4, 26, 3);
+          c.fillStyle = "#ffd34d";
+          c.beginPath();
+          c.arc(mx + 8, hy - 8, 3.5, 0, Math.PI * 2);
+          c.fill();
+          var lg = c.createRadialGradient(
+            mx + 8,
+            hy - 8,
+            0,
+            mx + 8,
+            hy - 8,
+            20,
+          );
+          var la = 0.35 + 0.1 * Math.sin(t * 3);
+          lg.addColorStop(0, "rgba(255,230,140," + la.toFixed(2) + ")");
+          lg.addColorStop(1, "rgba(255,230,140,0)");
+          c.fillStyle = lg;
+          c.beginPath();
+          c.arc(mx + 8, hy - 8, 20, 0, Math.PI * 2);
+          c.fill();
+
+          // drum, crank, and the arm that turns it
+          c.fillStyle = "#c7ccd2";
+          c.beginPath();
+          c.arc(PIVOT.x, PIVOT.y, 9, 0, Math.PI * 2);
+          c.fill();
+          var ca =
+            working || hauling
+              ? hook.crank
+              : hook.crank + Math.sin(t * 1.6) * 0.04;
+          var hx = PIVOT.x + Math.cos(ca) * 14,
+            hyy = PIVOT.y + Math.sin(ca) * 14;
+          c.strokeStyle = "#8a8f96";
+          c.lineWidth = 3;
+          c.beginPath();
+          c.moveTo(PIVOT.x, PIVOT.y);
+          c.lineTo(hx, hyy);
+          c.stroke();
+          c.fillStyle = "#6a7078";
+          c.beginPath();
+          c.arc(PIVOT.x, PIVOT.y, 3.5, 0, Math.PI * 2);
+          c.fill();
+          // two-bone arm from shoulder to the crank handle
+          var sx = mx + 8,
+            sy = y0 - 54,
+            L = 24;
+          var dx = hx - sx,
+            dy = hyy - sy,
+            d = Math.sqrt(dx * dx + dy * dy);
+          d = Math.min(d, L * 2 - 0.5);
+          var ux = dx / Math.sqrt(dx * dx + dy * dy),
+            uy = dy / Math.sqrt(dx * dx + dy * dy);
+          var a = d / 2,
+            hh = Math.sqrt(Math.max(0, L * L - a * a));
+          var ex = sx + ux * a + uy * hh,
+            ey = sy + uy * a - ux * hh;
+          if (ey < sy + uy * a) {
+            ex = sx + ux * a - uy * hh;
+            ey = sy + uy * a + ux * hh;
+          }
+          c.strokeStyle = "#d9a066";
+          c.lineWidth = 7;
+          c.beginPath();
+          c.moveTo(sx, sy);
+          c.lineTo(ex, ey);
+          c.lineTo(sx + ux * d, sy + uy * d);
+          c.stroke();
+          c.fillStyle = "#e3b48a";
+          c.beginPath();
+          c.arc(sx + ux * d, sy + uy * d, 4, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = "#4a2f19";
+          c.beginPath();
+          c.arc(hx, hyy, 3, 0, Math.PI * 2);
+          c.fill();
+          c.lineCap = "butt";
+        }
+
+        function drawClaw(x, y, a, closed) {
+          var c = ctx,
+            open = closed ? 5 : 13;
+          c.save();
+          c.translate(x, y);
+          c.rotate(-a);
+          c.strokeStyle = "#c7ccd2";
+          c.lineWidth = 4;
+          c.lineCap = "round";
+          c.beginPath();
+          c.arc(0, -2, 4, 0, Math.PI * 2);
+          c.stroke();
+          c.beginPath();
+          c.moveTo(0, 2);
+          c.lineTo(-open, 12);
+          c.quadraticCurveTo(-open - 2, 20, -open + 5, 25);
+          c.stroke();
+          c.beginPath();
+          c.moveTo(0, 2);
+          c.lineTo(open, 12);
+          c.quadraticCurveTo(open + 2, 20, open - 5, 25);
+          c.stroke();
+          c.restore();
+          c.lineCap = "butt";
+        }
+
+        function draw(t) {
+          ctx.clearRect(0, 0, W, H);
+          ctx.drawImage(bg, 0, 0, W, H);
+          var i,
+            s,
+            dx = Math.sin(hook.angle),
+            dy = Math.cos(hook.angle);
+
+          for (i = 0; i < g.nuggets.length; i++) {
+            s = g.nuggets[i];
+            if (!s.hooked) drawNugget(ctx, s, s.x, s.y, s.rot, t);
+          }
+          var ex = PIVOT.x + dx * hook.len,
+            ey = PIVOT.y + dy * hook.len;
+          ctx.strokeStyle = "#d9c9a0";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(PIVOT.x, PIVOT.y);
+          ctx.lineTo(ex, ey);
+          ctx.stroke();
+          drawWinch(t);
+          drawClaw(
+            ex,
+            ey,
+            hook.angle,
+            hook.mode === "retract" || !!hook.caught,
+          );
+          if (hook.caught) {
+            s = hook.caught;
+            var off = 14 + s.h / 2;
+            drawNugget(ctx, s, ex + dx * off, ey + dy * off, s.rot, t);
+          }
+          for (i = 0; i < parts.length; i++) {
+            var p = parts[i],
+              al = 1 - p.life / p.max;
+            ctx.globalAlpha = Math.max(0, al);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+          }
+          ctx.globalAlpha = 1;
+          for (i = 0; i < floats.length; i++) {
+            var f = floats[i],
+              fa = Math.max(0, 1 - f.life / f.max);
+            ctx.globalAlpha = fa;
+            ctx.font = '800 26px "Alegreya Sans", "Trebuchet MS", sans-serif';
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = "rgba(30,14,3,0.85)";
+            ctx.strokeText(f.text, f.x, f.y - f.life * 36);
+            ctx.fillStyle = f.color;
+            ctx.fillText(f.text, f.x, f.y - f.life * 36);
+          }
+          ctx.globalAlpha = 1;
+        }
+
+        /* ---------- HUD ---------- */
+        var hudCache = {};
+        function setHud(id, val) {
+          if (hudCache[id] !== val) {
+            hudCache[id] = val;
+            $(id).textContent = val;
+          }
+        }
+        function updateHud() {
+          setHud("hudScore", g.score);
+          setHud("hudLeft", QUESTIONS.length - g.resolved);
+          setHud("hudStreak", g.streak > 1 ? "x" + g.streak : g.streak);
+          setHud("hudMiss", g.misses);
+        }
+        function renderPips() {
+          var box = $("pips"),
+            i;
+          box.innerHTML = "";
+          var lbl = document.createElement("span");
+          lbl.className = "lbl";
+          lbl.textContent = "Nuggets";
+          box.appendChild(lbl);
+          for (i = 0; i < QUESTIONS.length; i++) {
+            var d = document.createElement("span");
+            d.className = "pip";
+            if (g.results[i])
+              d.classList.add(g.results[i].ok ? "right" : "wrong");
+            box.appendChild(d);
+          }
+          box.setAttribute(
+            "aria-label",
+            g.resolved +
+              " of " +
+              QUESTIONS.length +
+              " nuggets hauled, " +
+              g.correct +
+              " answered right",
+          );
+        }
+
+        /* ---------- Update ---------- */
+        function update(dt) {
+          var i;
+          for (i = parts.length - 1; i >= 0; i--) {
+            var p = parts[i];
+            p.life += dt;
+            if (p.life >= p.max) {
+              parts.splice(i, 1);
+              continue;
+            }
+            p.vy += 420 * dt;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+          }
+          for (i = floats.length - 1; i >= 0; i--) {
+            floats[i].life += dt;
+            if (floats[i].life >= floats[i].max) floats.splice(i, 1);
+          }
+          if (g.state !== "play" && g.state !== "menu" && g.state !== "over")
+            return;
+
+          if (hook.mode === "swing") {
+            hook.angle += hook.dir * SWING * dt;
+            if (hook.angle > MAXA) {
+              hook.angle = MAXA;
+              hook.dir = -1;
+            }
+            if (hook.angle < -MAXA) {
+              hook.angle = -MAXA;
+              hook.dir = 1;
+            }
+          } else if (hook.mode === "extend") {
+            hook.len += EXTEND * dt;
+            hook.crank += EXTEND * dt * 0.04;
+            var dx = Math.sin(hook.angle),
+              dy = Math.cos(hook.angle);
+            var tx = PIVOT.x + dx * (hook.len + 18),
+              ty = PIVOT.y + dy * (hook.len + 18);
+            for (i = 0; i < g.nuggets.length; i++) {
+              var s = g.nuggets[i];
+              if (
+                !s.hooked &&
+                Math.abs(tx - s.x) <= s.w / 2 + 6 &&
+                Math.abs(ty - s.y) <= s.h / 2 + 6
+              ) {
+                s.hooked = true;
+                hook.caught = s;
+                hook.mode = "retract";
+                hook.weight = (s.w * s.h) / (58 * 46);
+                burst(tx, ty, 10, true);
+                break;
+              }
+            }
+            if (
+              hook.mode === "extend" &&
+              (tx < 10 || tx > W - 10 || ty > H - 10)
+            ) {
+              hook.mode = "retract";
+              g.misses++;
+              burst(
+                Math.max(14, Math.min(W - 14, tx)),
+                Math.min(H - 14, ty),
+                8,
+                false,
+              );
+            }
+          } else if (hook.mode === "retract") {
+            var speed = 540;
+            if (hook.caught) speed = 390 / (0.55 + 0.6 * hook.weight);
+            hook.len -= speed * dt;
+            hook.crank -= speed * dt * 0.05;
+            if (hook.len <= LEN0) {
+              hook.len = LEN0;
+              hook.mode = "swing";
+              if (hook.caught) {
+                var got = hook.caught;
+                hook.caught = null;
+                burst(PIVOT.x, PIVOT.y + 30, 22, true);
+
+                openQuiz(got);
+              }
+            }
+          }
+        }
+
+        var last = 0;
+        function frame(ts) {
+          var dt = Math.min((ts - last) / 1000, 0.033);
+          if (dt < 0) dt = 0;
+          last = ts;
+          update(dt);
+          draw(ts / 1000);
+          updateHud();
+          requestAnimationFrame(frame);
+        }
+
+        /* ---------- Controls ---------- */
+        function drop() {
+          if (g.state === "play" && hook.mode === "swing") {
+            hook.mode = "extend";
+          }
+        }
+        canvas.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+          drop();
+        });
+
+        document.addEventListener("keydown", function (e) {
+          var k = e.key;
+          if (g.state === "play") {
+            if (k === " " || k === "ArrowDown") {
+              e.preventDefault();
+              drop();
+            }
+          } else if (g.state === "quiz" && current) {
+            var idx = -1;
+            if (k >= "1" && k <= "4") idx = parseInt(k, 10) - 1;
+            else if (/^[a-dA-D]$/.test(k))
+              idx = k.toLowerCase().charCodeAt(0) - 97;
+            if (idx >= 0 && !current.locked) {
+              e.preventDefault();
+              answer(current.order[idx]);
+            } else if (current.locked && (k === "Enter" || k === " ")) {
+              e.preventDefault();
+              next();
+            }
+          }
+        });
+
+        /* ---------- Overlay panels ---------- */
+        function showPanel(id) {
+          ["startPanel", "quizPanel", "endPanel"].forEach(function (p) {
+            $(p).hidden = p !== id;
+          });
+          $("overlay").hidden = !id;
+        }
+
+        function openQuiz(nugget) {
+          var Q = QUESTIONS[nugget.qi];
+          g.state = "quiz";
+          current = {
+            nugget: nugget,
+            Q: Q,
+            locked: false,
+            order: shuffle([0, 1, 2, 3]),
+          };
+          $("qMeta").textContent =
+            "Question " + (g.resolved + 1) + " of " + QUESTIONS.length;
+          $("qWorth").textContent =
+            "Worth " + (PTS[Q.t] + STREAK_BONUS * g.streak);
+          $("qText").textContent = Q.q;
+          var box = $("opts");
+          box.innerHTML = "";
+          current.order.forEach(function (orig, pos) {
+            var b = document.createElement("button");
+            b.type = "button";
+            b.className = "opt";
+            b.dataset.i = orig;
+            var key = document.createElement("span");
+            key.className = "key";
+            key.textContent = "ABCD"[pos];
+            var txt = document.createElement("span");
+            txt.className = "txt";
+            txt.textContent = Q.o[orig];
+            b.appendChild(key);
+            b.appendChild(txt);
+            b.addEventListener("click", function () {
+              answer(orig);
+            });
+            box.appendChild(b);
+          });
+          $("feedback").hidden = true;
+          showPanel("quizPanel");
+          var first = box.querySelector(".opt");
+          if (first) first.focus({ preventScroll: true });
+        }
+
+        function answer(orig) {
+          if (!current || current.locked) return;
+          current.locked = true;
+          var Q = current.Q,
+            ok = orig === Q.a,
+            gain = 0;
+          Array.prototype.forEach.call(
+            $("opts").querySelectorAll(".opt"),
+            function (b) {
+              var i = parseInt(b.dataset.i, 10);
+              b.disabled = true;
+              if (i === Q.a) b.classList.add("right");
+              else if (i === orig) b.classList.add("wrong");
+              else b.classList.add("dim");
+            },
+          );
+          if (ok) {
+            gain = PTS[Q.t] + STREAK_BONUS * g.streak;
+            g.score += gain;
+            g.streak++;
+            g.correct++;
+            if (g.streak > g.bestStreak) g.bestStreak = g.streak;
+            $("fbText").textContent =
+              "Correct! +" +
+              gain +
+              (g.streak > 1 ? " (streak x" + g.streak + ")" : "");
+          } else {
+            g.streak = 0;
+            $("fbText").textContent =
+              "Not quite. The answer is " + Q.o[Q.a] + ".";
+          }
+          $("fbFact").textContent = Q.f;
+          $("feedback").className = "feedback " + (ok ? "ok" : "no");
+          g.results.push({ qi: current.nugget.qi, ok: ok, gain: gain });
+          g.resolved++;
+          current.gain = gain;
+          current.ok = ok;
+          g.nuggets = g.nuggets.filter(function (s) {
+            return s !== current.nugget;
+          });
+          renderPips();
+          $("nextBtn").textContent =
+            g.resolved >= QUESTIONS.length ? "See results" : "Keep digging";
+          $("feedback").hidden = false;
+          $("nextBtn").focus({ preventScroll: true });
+        }
+
+        function next() {
+          if (g.state !== "quiz" || !current || !current.locked) return;
+          var ok = current.ok,
+            gain = current.gain;
+          current = null;
+          if (document.activeElement && document.activeElement.blur)
+            document.activeElement.blur();
+          if (g.resolved >= QUESTIONS.length) {
+            endGame();
+            return;
+          }
+          g.state = "play";
+          showPanel(null);
+          if (ok) {
+            floatText("+" + gain, PIVOT.x + 120, 60, "#fff0a3");
+            burst(PIVOT.x + 120, 70, 16, true);
+          } else floatText("Missed it", PIVOT.x + 120, 60, "#ffb4a2");
+        }
+        $("nextBtn").addEventListener("click", next);
+
+        function endGame() {
+          var perfect = g.correct === QUESTIONS.length;
+          var perfectBonus = perfect ? PERFECT_BONUS : 0;
+          var steady = Math.max(0, 200 - 20 * g.misses);
+          g.score += perfectBonus + steady;
+          g.state = "over";
+          hook.mode = "swing";
+          hook.len = LEN0;
+          hook.caught = null;
+          var isNew = g.score > best;
+          if (isNew) {
+            best = g.score;
+            try {
+              localStorage.setItem(BEST_KEY, String(best));
+            } catch (e) {
+              /* storage unavailable */
+            }
+          }
+          $("bestScore").textContent = best;
+          $("endTitle").textContent = perfect ? "Pure gold" : "Mine cleared";
+          $("endScore").textContent = g.score;
+          var c = g.correct,
+            rank;
+          if (c === QUESTIONS.length) rank = "Master prospector";
+          else if (c >= 9) rank = "Seasoned digger";
+          else if (c >= 5) rank = "Weekend panner";
+          else rank = "Greenhorn";
+          $("endRank").textContent = rank;
+          $("endNew").hidden = !isNew;
+          $("stCorrect").textContent = c + " / " + QUESTIONS.length;
+          $("stStreak").textContent = g.bestStreak;
+          $("stMiss").textContent = g.misses;
+          $("stPerfect").textContent = perfectBonus;
+          $("stSteady").textContent = steady;
+          $("stBest").textContent = best;
+          var list = $("reviewList");
+          list.innerHTML = "";
+          g.results.forEach(function (r) {
+            var Q = QUESTIONS[r.qi];
+            var li = document.createElement("li");
+            var mk = document.createElement("span");
+            mk.className = "mk " + (r.ok ? "ok" : "no");
+            mk.textContent = r.ok ? "✓" : "✗";
+            mk.setAttribute("aria-label", r.ok ? "Right" : "Missed");
+            var body = document.createElement("span");
+            var q = document.createElement("span");
+            q.textContent = Q.q;
+            var br = document.createElement("br");
+            var ans = document.createElement("span");
+            ans.className = "ans";
+            ans.textContent = "Answer: " + Q.o[Q.a];
+            body.appendChild(q);
+            body.appendChild(br);
+            body.appendChild(ans);
+            li.appendChild(mk);
+            li.appendChild(body);
+            list.appendChild(li);
+          });
+          $("reviewList").parentNode.open = false;
+          showPanel("endPanel");
+
+          $("againBtn").focus({ preventScroll: true });
+        }
+
+        function startGame() {
+          resetRound();
+          g.state = "play";
+          current = null;
+          showPanel(null);
+          if (document.activeElement && document.activeElement.blur)
+            document.activeElement.blur();
+        }
+        $("startBtn").addEventListener("click", startGame);
+        $("againBtn").addEventListener("click", startGame);
+
+        resetRound();
+        showPanel("startPanel");
+        $("startBtn").focus({ preventScroll: true });
+        requestAnimationFrame(frame);
+      })();
+    </script>
+  </body>
+</html>
